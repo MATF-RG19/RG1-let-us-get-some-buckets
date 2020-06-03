@@ -55,6 +55,24 @@ static void init(int argc, char* argv[]) {
         glutKeyboardFunc(on_keyboard);
         glutReshapeFunc(on_reshape);
         glutDisplayFunc(on_display);
+        
+//      Koeficijenti svetla
+        GLfloat light_position[] = { 1, 1, 1, 0 };
+
+        GLfloat light_ambient[] = { 0.0, 0.0, 0.0, 1 };
+
+        GLfloat light_diffuse[] = { 0.1, 0.1, 0.1, 1 };
+
+        GLfloat light_specular[] = { 0.9, 0.9, 0.9, 1 };
+        
+//      Ukljucivanje svetla
+        glEnable(GL_LIGHTING);
+        glEnable(GL_LIGHT0);
+        glLightfv(GL_LIGHT0, GL_POSITION, light_position);
+        glLightfv(GL_LIGHT0, GL_AMBIENT, light_ambient);
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
+        glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);
+        
 }
 
 static void on_keyboard(unsigned char key, int x, int y)
@@ -153,27 +171,23 @@ static void on_timer(int value)
         if(y_curr >= (3.75-radius)){
                 y_curr = 3.75-radius;
                 v_y = 0;
-                glClearColor(0.7, 0.8, 0.8, 0);
                 kraj++;
-                animation = 0;
         }
 
 //      Uslov da je kraj igre ako udari u pod
         if(y_curr <= -(3-radius)){
                 v_y += jump;
-                glClearColor(0.7, 0.8, 0.8, 0);
                 kraj++;
-                animation = 0;
                 jump -= 0.2;
         }
 
-//      Uslov da se lopta ne pojavljuje ako je kraj i lopta se ne vidi na ekranu
+//      Uslov da se obruc ne pojavljuje ako je kraj i ako se ne vidi na ekranu
         if(animation == 0 && x_basket >= 7){
                 x_basket = 10;
                 kraj++;
         }
         
-//      Uslov da se lopta ne pojavljuje ako je kraj i lopta se ne vidi na ekranu
+//      Uslov da se obruc ne pojavljuje ako je kraj i ako se ne vidi na ekranu
         if(animation == 0 && x_basket <= -10){
                 timer_active = 0;
                 kraj++;
@@ -188,25 +202,23 @@ static void on_timer(int value)
         }
         
 //      Ako lopta padne na levu ili desnu stranu obruca odbija se
-        if(((x_basket > 0.5 && x_basket < 1) || (x_basket > -1 && x_basket < -0.5)) && (y_curr < 0.6 && y_curr > 0.2) && v_y < 0 && animation != 0){
+        if(((x_basket > 0.5 && x_basket < 1.1) || (x_basket > -1.1 && x_basket < -0.5)) && (y_curr < 0.6 && y_curr > 0.2) && v_y < 0 && animation != 0){
                 v_y += 0.8;
         }
         
 //      Lopta se odbija od obruca u slucaju da se nalazi ispod njega
-        if((x_basket < 1 && x_basket > -1) && (y_curr < -0.4 && y_curr > -0.8) && animation != 0){
+        if((x_basket < 1 && x_basket > -1) && (y_curr < 0 && y_curr > -0.5) && animation != 0){
                 v_y = -0.2;
         }
         
 //      Ispisivanje trenutnog rezultata na terminal u slucaju pogotka
         if(k > 0 && x_basket < -2){
                 printf("Score! +1\n");
-                printf("Total score %d\n", bucket);
                 k = 0;
         }
         
 //      Ako je obruc prosao, a lopta nije prosla kroz njega - game over
         if(flag == 0 && x_basket <= -3){
-                glClearColor(0.7, 0.8, 0.8, 0);
                 kraj++;
                 animation = 0;
         }
@@ -222,8 +234,9 @@ static void on_timer(int value)
         
 //      Ispisivanje na terminal u slucaju kraja
         if(kraj == 1){
-                        printf("Game over!\n");
-                        printf("Total score: %d\n", bucket);
+                        printf("Game over! Total score: %d\n", bucket);
+                        kraj++;
+                        animation = 0;
         }
         
         glutPostRedisplay();
@@ -234,30 +247,52 @@ static void on_timer(int value)
 
 static void on_display(void)
 {
+//      Postavljanje koeficijenata materijala
+        GLfloat ambient_coeffs[] = { 0.3, 0.3, 0.3, 1 };
+
+        GLfloat diffuse_coeffs[] = { 0.0, 0.0, 0.8, 1 };
+
+        GLfloat specular_coeffs[] = { 1, 1, 1, 1 };
+
+        GLfloat shininess = 20;
+
+//      Brise se prethodni sadrzaj prozora.
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-//      Postavlja se kamera
+//      Podesava se vidna tacka. 
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
-        gluLookAt(0, 0, 10, 0, 0, 0, 0, 1, 0);
-        
+        if(kraj == 0)
+                gluLookAt(0, 1, 10, 0, 0, 0, 0, 1, 0);
+        else
+                gluLookAt(0, 1, 10, 0, 0, 0, 0, 1, 0);
+
 //      Implementacija plafona i poda
         glPushMatrix();
-                glColor3f(0, 0.3, 0.3);
-                glTranslatef(0, 73, 0);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+                glTranslatef(0, 68, 0);
                 glutSolidCube(100);
         glPopMatrix();
         
         glPushMatrix();
-                glColor3f(0, 0.3, 0.3);
-                glTranslatef(0, -68, 0);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+                glTranslatef(0, -73, 0);
                 glutSolidCube(100);
         glPopMatrix();
                 
 //      Implementacija lopte
         glPushMatrix();
                 glTranslatef(x_curr, y_curr, 0);
-                glColor3f(0.8, 0.3, 0);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
                 glutSolidSphere(radius, 100, 100);
         glPopMatrix();
         
@@ -265,14 +300,20 @@ static void on_display(void)
         glPushMatrix();
                 glRotatef(90, 1, 0, 0);
                 glTranslatef(x_basket, 0, 0);
-                glColor3f(0.7, 0.1, 0);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
                 glutSolidTorus(0.06, 0.85, 100, 100);
         glPopMatrix();
         
 //      Bitmapa za broj poena
         glPushMatrix();
         glScalef(1.3, 1.3, 0);
-        glColor3f(0.7, 0.3, 0.7);
+        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
+        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
         glRasterPos3f(2.88, 3, 0);
         glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (bucket/100%10) +'0');
         glRasterPos3f(2.95, 3, 0);
@@ -284,7 +325,10 @@ static void on_display(void)
 //      Bitmapa za vreme
         glPushMatrix();
         glScalef(1.3, 1.3, 0);
-        glColor3f(1, 0, 0);
+        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+        glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
+        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
         glRasterPos3f(-3.11, 3, 0);
         glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (period/100000%10)+'0');
         glRasterPos3f(-3.04, 3, 0);
