@@ -1,2 +1,3 @@
 # RG1-let-us-get-some-buckets
 Let us get some buckets
+Let us get some buckets je igra odradjena kao imitacija dela igre kosarke u 2D stilu. Cilj igre je postici sto vise poena, odnosno ubaciti loptu kroz obruc sto vise puta, a da se pritom ne udari loptom u plafon ili pod. Takodje, pri svakom prolasku obruca mora se postici pogodak inace je kraj igre. Igra se pokrece pritiskom na slovo G/g, stopira na S/s, restartuje na R/r, skok lopte se postize pritiskom slova M/m, slika na pozadini se postavlja na B/b, a gasenje pozadine na slovo W/w. Izlazak iz igre se postize pritiskom tastera Esc.

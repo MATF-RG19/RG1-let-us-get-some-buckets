@@ -2,9 +2,16 @@
 #include <stdlib.h>
 #include <GL/glut.h>
 #include <math.h>
+#include "image.h"
+
+#define FILENAME0 "floor.bmp"
+#define FILENAME1 "logo.bmp"
+#define FILENAME2 "vice.bmp"
 
 #define TIMER_ID 0
 #define TIMER_INTERVAL 50
+
+static GLuint names[3];
 
 static void init(int, char**);
 
@@ -19,7 +26,7 @@ static void on_timer(int);
 static int timer_active;                // Fleg koji odredjuje stanje tajmera
 static float x_basket = 10;             // Trenutne koordinate kosa
 static float x_curr = 0, y_curr = 1;    // Trenutne koordinate lopte
-static float radius = 0.37;             // Poluprecnik lopte
+static float radius = 0.38;             // Poluprecnik lopte
 static float v_b = 0.15;                // Vektorska brzina kretanja obruca
 static int animation = 1;               // Fleg koji odredjuje status animacije
 static float v_y = 0.1;                 // Vektorska brzina kretanja lopte
@@ -29,6 +36,9 @@ static int bucket = 0;                  // Poeni
 static unsigned kraj = 0;               // Fleg koji sluzi za Ispisivanje kraja na konzoli
 static int period;                      // Promenljiva za merenje vremena
 static unsigned k = 0;                  // Promenljiva koja sluzi za proveru u slucaju prolaska lopte kroz obruc u trenutnom ciklusu
+static float v_a = 0;                   // Promenljiva koja sluzi za fokusiranje logoa
+static float v_z = 0;                   // Promenljiva koja sluzi za fokusiranje logoa
+static int background = 0;              // Promenljiva koja sluzi za ukljucivanje teksture pozadine
 
 int main(int argc, char* argv[])
 {
@@ -56,16 +66,19 @@ static void init(int argc, char* argv[]) {
         glutReshapeFunc(on_reshape);
         glutDisplayFunc(on_display);
         
-//      Koeficijenti svetla
+        /* Pozicija svetla (u pitanju je direkcionalno svetlo). */
         GLfloat light_position[] = { 1, 1, 1, 0 };
 
+        /* Ambijentalna boja svetla. */
         GLfloat light_ambient[] = { 0.0, 0.0, 0.0, 1 };
 
+        /* Difuzna boja svetla. */
         GLfloat light_diffuse[] = { 0.1, 0.1, 0.1, 1 };
 
+        /* Spekularna boja svetla. */
         GLfloat light_specular[] = { 0.9, 0.9, 0.9, 1 };
         
-//      Ukljucivanje svetla
+        /* Ukljucuje se osvjetljenje i podesavaju parametri svetla. */
         glEnable(GL_LIGHTING);
         glEnable(GL_LIGHT0);
         glLightfv(GL_LIGHT0, GL_POSITION, light_position);
@@ -73,6 +86,72 @@ static void init(int argc, char* argv[]) {
         glLightfv(GL_LIGHT0, GL_DIFFUSE, light_diffuse);
         glLightfv(GL_LIGHT0, GL_SPECULAR, light_specular);
         
+        glEnable(GL_TEXTURE_2D);
+
+        glTexEnvf(GL_TEXTURE_ENV,
+              GL_TEXTURE_ENV_MODE,
+              GL_REPLACE);
+        
+        Image * image;
+        
+        image = image_init(0, 0);
+
+        /* Generisu se identifikatori tekstura. */
+        glGenTextures(3, names);
+
+        /* Kreira se prva tekstura. */
+        image_read(image, FILENAME0);
+
+        glBindTexture(GL_TEXTURE_2D, names[0]);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_T, GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+                 image->width, image->height, 0,
+                 GL_RGB, GL_UNSIGNED_BYTE, image->pixels);
+        
+        /* Kreira se treca tekstura. */
+        image_read(image, FILENAME1);
+
+        glBindTexture(GL_TEXTURE_2D, names[1]);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_T, GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+                 image->width, image->height, 0,
+                 GL_RGB, GL_UNSIGNED_BYTE, image->pixels);
+        
+        /* Kreira se cetvrta tekstura. */
+        image_read(image, FILENAME2);
+
+        glBindTexture(GL_TEXTURE_2D, names[2]);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_S, GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_WRAP_T, GL_CLAMP);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,
+                    GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB,
+                 image->width, image->height, 0,
+                 GL_RGB, GL_UNSIGNED_BYTE, image->pixels);
+        
+        /* Iskljucujemo aktivnu teksturu */
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        /* Unistava se objekat za citanje tekstura iz fajla. */
+        image_done(image);
 }
 
 static void on_keyboard(unsigned char key, int x, int y)
@@ -80,14 +159,15 @@ static void on_keyboard(unsigned char key, int x, int y)
         switch(key) 
         {
                 case 27:
-//                         Zavrsava se program
+//                      Zavrsava se program
                         if(kraj == 0)
-                                printf("Game over!\n");
+                                printf("Game over! Total score: %d\n", bucket);
+                        glDeleteTextures(3, names);
                         exit(0);
                         break;
                 case 'g':
                 case 'G':
-//                         Pokrece se animacija
+//                      Pokrece se animacija
                         if(!timer_active) 
                         {
                                 timer_active = 1;
@@ -97,12 +177,13 @@ static void on_keyboard(unsigned char key, int x, int y)
                         break;
                 case 's':
                 case 'S':
-//                         Zaustavlja se animacija
+//                      Zaustavlja se animacija
                         printf("Stop!\n");
                         timer_active = 0;
                         break;
                 case 'r':
                 case 'R':
+//                      Restartovanje programa
                         printf("Restart!\n");
                         x_curr = 0;
                         y_curr = 1;
@@ -113,15 +194,30 @@ static void on_keyboard(unsigned char key, int x, int y)
                         jump = 1;
                         period = 0;
                         kraj = 0;
-                        glClearColor(1, 1, 1, 0);
+                        v_a = 0;
+                        v_z = 0;
+                        glutPostRedisplay();
                         break;
                 case 'm':
                 case 'M':
+//                      Skok
                         if(animation){
                                 v_y += 0.7;
                                 if(v_y >= 0.6)
                                         v_y = 0.6;
                         }
+                        break;
+                case 'b':
+                case 'B':
+//                      Postavljanje pozadine
+                        background = 1;
+                        glutPostRedisplay();
+                        break;
+                case 'w':
+                case 'W':
+//                      Gasenje pozadine
+                        background = 0;
+                        glutPostRedisplay();
                         break;
         }
 }
@@ -134,7 +230,7 @@ static void on_reshape(int width, int height)
 //      Postavljaju se parametri projekcije
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        gluPerspective(45, (float) width / height, 1, 1500);
+        gluPerspective(45, (float) width / height, 1, 100);
 }
 
 
@@ -239,6 +335,15 @@ static void on_timer(int value)
                         animation = 0;
         }
         
+        if(kraj > 0) {
+                v_a -= .1;
+                if(v_a <= -6)
+                        v_a = -6;
+                v_z -= .05;
+                if(v_z <= -1)
+                        v_z = -1;
+        }
+        
         glutPostRedisplay();
         
         if(timer_active)
@@ -265,38 +370,98 @@ static void on_display(void)
         if(kraj == 0)
                 gluLookAt(0, 1, 10, 0, 0, 0, 0, 1, 0);
         else
-                gluLookAt(0, 1, 10, 0, 0, 0, 0, 1, 0);
+                gluLookAt(0, 1+v_z, 10+v_a, 0, 0, 0, 0, 1, 0);
 
+//         Implementacija pozadine
+        if(background){
+                glPushMatrix();
+                glBindTexture(GL_TEXTURE_2D, names[2]);
+                glBegin(GL_QUADS);
+                        glNormal3f(0, 0, 1);
+
+                        glTexCoord2f(0, 0);
+                        glVertex3f(-10, -3.1, 0);
+
+                        glTexCoord2f(1, 0);
+                        glVertex3f(8.6, -3.1, 0);
+
+                        glTexCoord2f(1, 1);
+                        glVertex3f(8.6, 3.75, 0);
+
+                        glTexCoord2f(0, 1);
+                        glVertex3f(-10, 3.75, 0);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
+                glPopMatrix();
+        }
+        
+//         NBA logo
+        if(kraj > 0){
+        glPushMatrix();
+                glBindTexture(GL_TEXTURE_2D, names[1]);
+                glBegin(GL_QUADS);
+                        glNormal3f(0, 0, 1);
+
+                        glTexCoord2f(0, 0);
+                        glVertex3f(-1, -1.85, 0);
+
+                        glTexCoord2f(1, 0);
+                        glVertex3f(1, -1.85, 0);
+
+                        glTexCoord2f(1, 1);
+                        glVertex3f(1, 2, 0);
+
+                        glTexCoord2f(0, 1);
+                        glVertex3f(-1, 2, 0);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
+        glPopMatrix();
+        }
+        
 //      Implementacija plafona i poda
         glPushMatrix();
-                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
-                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
-                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
-                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
-                glTranslatef(0, 68, 0);
-                glutSolidCube(100);
+                glTranslatef(0, 3, 0);
+                glBindTexture(GL_TEXTURE_2D, names[0]);
+                glBegin(GL_QUADS);
+                        glNormal3f(0, 0, 1);
+
+                        glTexCoord2f(0, 0);
+                        glVertex3f(-10, 0.7, 0);
+
+                        glTexCoord2f(1, 0);
+                        glVertex3f(10, 0.7, 0);
+
+                        glTexCoord2f(1, 1);
+                        glVertex3f(10, 3, 0);
+
+                        glTexCoord2f(0, 1);
+                        glVertex3f(-10, 3, 0);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
         glPopMatrix();
         
         glPushMatrix();
-                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
-                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
-                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
-                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
-                glTranslatef(0, -73, 0);
-                glutSolidCube(100);
+                glTranslatef(0, 3, 0);
+                glBindTexture(GL_TEXTURE_2D, names[0]);
+                glBegin(GL_QUADS);
+                        glNormal3f(0, 0, 1);
+
+                        glTexCoord2f(0, 0);
+                        glVertex3f(-10, -9, 0);
+
+                        glTexCoord2f(1, 0);
+                        glVertex3f(10, -9, 0);
+
+                        glTexCoord2f(1, 1);
+                        glVertex3f(10, -6.06, 0);
+
+                        glTexCoord2f(0, 1);
+                        glVertex3f(-10, -6.06, 0);
+                glEnd();
+                glBindTexture(GL_TEXTURE_2D, 0);
         glPopMatrix();
                 
-//      Implementacija lopte
-        glPushMatrix();
-                glTranslatef(x_curr, y_curr, 0);
-                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
-                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
-                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
-                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
-                glutSolidSphere(radius, 100, 100);
-        glPopMatrix();
-        
-//      Implementacija obruca
+        //      Implementacija obruca
         glPushMatrix();
                 glRotatef(90, 1, 0, 0);
                 glTranslatef(x_basket, 0, 0);
@@ -307,13 +472,23 @@ static void on_display(void)
                 glutSolidTorus(0.06, 0.85, 100, 100);
         glPopMatrix();
         
+//      Implementacija lopte
+        glPushMatrix();
+                glTranslatef(x_curr, y_curr, 0);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+                glutSolidSphere(radius, 100, 100);
+        glPopMatrix();
+        
 //      Bitmapa za broj poena
         glPushMatrix();
         glScalef(1.3, 1.3, 0);
-        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
-        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
-        glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
-        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
         glRasterPos3f(2.88, 3, 0);
         glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (bucket/100%10) +'0');
         glRasterPos3f(2.95, 3, 0);
@@ -325,10 +500,10 @@ static void on_display(void)
 //      Bitmapa za vreme
         glPushMatrix();
         glScalef(1.3, 1.3, 0);
-        glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
-        glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
-        glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
-        glMaterialf(GL_FRONT, GL_SHININESS, shininess);
+                glMaterialfv(GL_FRONT, GL_AMBIENT, ambient_coeffs);
+                glMaterialfv(GL_FRONT, GL_DIFFUSE, diffuse_coeffs);
+                glMaterialfv(GL_FRONT, GL_SPECULAR, specular_coeffs);
+                glMaterialf(GL_FRONT, GL_SHININESS, shininess);
         glRasterPos3f(-3.11, 3, 0);
         glutBitmapCharacter(GLUT_BITMAP_8_BY_13, (period/100000%10)+'0');
         glRasterPos3f(-3.04, 3, 0);
